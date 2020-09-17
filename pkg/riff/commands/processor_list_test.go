@@ -21,10 +21,11 @@ import (
 	"testing"
 
 	"github.com/projectriff/cli/pkg/cli"
-	"github.com/projectriff/cli/pkg/streaming/commands"
+	"github.com/projectriff/cli/pkg/riff/commands"
 	rifftesting "github.com/projectriff/cli/pkg/testing"
 	streamv1alpha1 "github.com/projectriff/system/pkg/apis/streaming/v1alpha1"
 	"github.com/vmware-labs/reconciler-runtime/apis"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -55,6 +56,7 @@ func TestProcessorListCommand(t *testing.T) {
 	processorOtherName := "test-other-processor"
 	defaultNamespace := "default"
 	otherNamespace := "other-namespace"
+	image := "registry.example.com/square"
 
 	table := rifftesting.CommandTable{
 		{
@@ -86,8 +88,8 @@ No processors found.
 				},
 			},
 			ExpectOutput: `
-NAME             FUNCTION   INPUTS    OUTPUTS   STATUS      AGE
-test-processor   <empty>    <empty>   <empty>   <unknown>   <unknown>
+NAME             IMAGE     INPUTS    OUTPUTS   STATUS      AGE
+test-processor   <empty>   <empty>   <empty>   <unknown>   <unknown>
 `,
 		},
 		{
@@ -123,9 +125,9 @@ No processors found.
 				},
 			},
 			ExpectOutput: `
-NAMESPACE         NAME                   FUNCTION   INPUTS    OUTPUTS   STATUS      AGE
-default           test-processor         <empty>    <empty>   <empty>   <unknown>   <unknown>
-other-namespace   test-other-processor   <empty>    <empty>   <empty>   <unknown>   <unknown>
+NAMESPACE         NAME                   IMAGE     INPUTS    OUTPUTS   STATUS      AGE
+default           test-processor         <empty>   <empty>   <empty>   <unknown>   <unknown>
+other-namespace   test-other-processor   <empty>   <empty>   <empty>   <unknown>   <unknown>
 `,
 		},
 		{
@@ -138,7 +140,13 @@ other-namespace   test-other-processor   <empty>    <empty>   <empty>   <unknown
 						Namespace: defaultNamespace,
 					},
 					Spec: streamv1alpha1.ProcessorSpec{
-						Build:   &streamv1alpha1.Build{FunctionRef: "square"},
+						Template: &corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								Containers: []corev1.Container{
+									{Image: image},
+								},
+							},
+						},
 						Inputs:  []streamv1alpha1.InputStreamBinding{{Stream: "numbers", Alias: "n1"}, {Stream: "morenumbers", Alias: "n2"}},
 						Outputs: []streamv1alpha1.OutputStreamBinding{{Stream: "squares", Alias: "s"}},
 					},
@@ -152,8 +160,8 @@ other-namespace   test-other-processor   <empty>    <empty>   <empty>   <unknown
 				},
 			},
 			ExpectOutput: `
-NAME     FUNCTION   INPUTS                       OUTPUTS     STATUS   AGE
-square   square     n1:numbers, n2:morenumbers   s:squares   Ready    <unknown>
+NAME     IMAGE                         INPUTS                       OUTPUTS     STATUS   AGE
+square   registry.example.com/square   n1:numbers, n2:morenumbers   s:squares   Ready    <unknown>
 `,
 		},
 		{

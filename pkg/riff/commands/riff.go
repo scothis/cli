@@ -29,27 +29,20 @@ func NewRiffCommand(ctx context.Context, c *cli.Config) *cobra.Command {
 		Use:   "riff",
 		Short: "riff is for functions",
 		Long: strings.TrimSpace(`
-The ` + c.Name + ` CLI combines with the projectriff system CRDs to build, run and wire
-workloads (functions, applications and containers). The CRDs provide the riff
-API of which this CLI is a client.
+The ` + c.Name + ` CLI is a client to the projectriff system CRDs. The CRDs
+define the riff API.
 
 Before running ` + c.Name + `, please install the projectriff system and its dependencies.
 See https://projectriff.io/docs/getting-started/
-
-The application, function and container commands define build plans and the
-credential commands to authenticate builds to container registries.
-
-Runtimes provide ways to execute the workloads. Different runtimes provide
-alternate execution models and capabilities.
 `),
 	}
 
-	cmd.AddCommand(NewStreamCommand(ctx, c)))
-	cmd.AddCommand(NewProcessorCommand(ctx, c)))
-	cmd.AddCommand(NewGatewayCommand(ctx, c)))
-	cmd.AddCommand(NewInMemoryGatewayCommand(ctx, c)))
-	cmd.AddCommand(NewKafkaGatewayCommand(ctx, c)))
-	cmd.AddCommand(NewPulsarGatewayCommand(ctx, c)))
+	cmd.AddCommand(NewStreamCommand(ctx, c))
+	cmd.AddCommand(NewProcessorCommand(ctx, c))
+	cmd.AddCommand(NewGatewayCommand(ctx, c))
+	cmd.AddCommand(NewInMemoryGatewayCommand(ctx, c))
+	cmd.AddCommand(NewKafkaGatewayCommand(ctx, c))
+	cmd.AddCommand(NewPulsarGatewayCommand(ctx, c))
 
 	return cmd
 }

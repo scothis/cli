@@ -22,3 +22,5 @@ require (
 	k8s.io/apimachinery v0.17.4
 	k8s.io/client-go v0.17.4
 )
+
+replace github.com/projectriff/system => github.com/scothis/system v0.0.0-20200917142114-d64130cdb4a6

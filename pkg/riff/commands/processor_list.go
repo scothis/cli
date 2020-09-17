@@ -117,9 +117,13 @@ func (opts *ProcessorListOptions) print(processor *streamv1alpha1.Processor, _ p
 	row := metav1beta1.TableRow{
 		Object: runtime.RawExtension{Object: processor},
 	}
+	image := ""
+	if processor.Spec.Template != nil && len(processor.Spec.Template.Spec.Containers) != 0 {
+		image = processor.Spec.Template.Spec.Containers[0].Image
+	}
 	row.Cells = append(row.Cells,
 		processor.Name,
-		cli.FormatEmptyString(opts.functionRef(processor)),
+		cli.FormatEmptyString(image),
 		cli.FormatEmptyString(strings.Join(prependInputAliases(processor.Spec.Inputs), ", ")),
 		cli.FormatEmptyString(strings.Join(prependOutputAliases(processor.Spec.Outputs), ", ")),
 		cli.FormatConditionStatus(processor.Status.GetCondition(streamv1alpha1.ProcessorConditionReady)),
@@ -128,18 +132,10 @@ func (opts *ProcessorListOptions) print(processor *streamv1alpha1.Processor, _ p
 	return []metav1beta1.TableRow{row}, nil
 }
 
-func (*ProcessorListOptions) functionRef(processor *streamv1alpha1.Processor) string {
-	if processor.Spec.Build != nil {
-		return processor.Spec.Build.FunctionRef
-	} else {
-		return ""
-	}
-}
-
 func (opts *ProcessorListOptions) printColumns() []metav1beta1.TableColumnDefinition {
 	return []metav1beta1.TableColumnDefinition{
 		{Name: "Name", Type: "string"},
-		{Name: "Function", Type: "string"},
+		{Name: "Image", Type: "string"},
 		{Name: "Inputs", Type: "string"},
 		{Name: "Outputs", Type: "string"},
 		{Name: "Status", Type: "string"},

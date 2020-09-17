@@ -39,10 +39,7 @@ import (
 type ProcessorCreateOptions struct {
 	options.ResourceOptions
 
-	Image        string
-	ContainerRef string
-	FunctionRef  string
-
+	Image   string
 	Env     []string
 	EnvFrom []string
 
@@ -66,35 +63,11 @@ func (opts *ProcessorCreateOptions) Validate(ctx context.Context) cli.FieldError
 
 	errs = errs.Also(opts.ResourceOptions.Validate(ctx))
 
-	// build-ref and image are mutually exclusive
-	used := []string{}
-	unused := []string{}
-
-	if opts.ContainerRef != "" {
-		used = append(used, cli.ContainerRefFlagName)
-	} else {
-		unused = append(unused, cli.ContainerRefFlagName)
-	}
-
-	if opts.FunctionRef != "" {
-		used = append(used, cli.FunctionRefFlagName)
-	} else {
-		unused = append(unused, cli.FunctionRefFlagName)
-	}
-
 	errs = errs.Also(validation.EnvVars(opts.Env, cli.EnvFlagName))
 	errs = errs.Also(validation.EnvVarFroms(opts.EnvFrom, cli.EnvFromFlagName))
 
-	if opts.Image != "" {
-		used = append(used, cli.ImageFlagName)
-	} else {
-		unused = append(unused, cli.ImageFlagName)
-	}
-
-	if len(used) == 0 {
-		errs = errs.Also(cli.ErrMissingOneOf(unused...))
-	} else if len(used) > 1 {
-		errs = errs.Also(cli.ErrMultipleOneOf(used...))
+	if opts.Image == "" {
+		errs = errs.Also(cli.ErrMissingField(cli.ImageFlagName))
 	}
 
 	if len(opts.Inputs) == 0 {
@@ -140,17 +113,6 @@ func (opts *ProcessorCreateOptions) Exec(ctx context.Context, c *cli.Config) err
 				},
 			},
 		},
-	}
-
-	if opts.ContainerRef != "" {
-		processor.Spec.Build = &streamingv1alpha1.Build{
-			ContainerRef: opts.ContainerRef,
-		}
-	}
-	if opts.FunctionRef != "" {
-		processor.Spec.Build = &streamingv1alpha1.Build{
-			FunctionRef: opts.FunctionRef,
-		}
 	}
 
 	for _, env := range opts.Env {
@@ -223,8 +185,8 @@ The processor is configured with a function or container reference and multiple
 input and/or output streams.
 `),
 		Example: strings.Join([]string{
-			fmt.Sprintf("%s streaming processor create my-processor %s my-func %s my-input-stream", c.Name, cli.FunctionRefFlagName, cli.InputFlagName),
-			fmt.Sprintf("%s streaming processor create my-processor %s my-func %s input:my-input-stream %s my-join-stream@earliest %s out:my-output-stream", c.Name, cli.FunctionRefFlagName, cli.InputFlagName, cli.InputFlagName, cli.OutputFlagName),
+			fmt.Sprintf("%s streaming processor create my-processor %s registry/my-func %s my-input-stream", c.Name, cli.ImageFlagName, cli.InputFlagName),
+			fmt.Sprintf("%s streaming processor create my-processor %s registry/my-func %s input:my-input-stream %s my-join-stream@earliest %s out:my-output-stream", c.Name, cli.ImageFlagName, cli.InputFlagName, cli.InputFlagName, cli.OutputFlagName),
 		}, "\n"),
 		PreRunE: cli.ValidateOptions(ctx, opts),
 		RunE:    cli.ExecOptions(ctx, c, opts),
@@ -236,10 +198,6 @@ input and/or output streams.
 
 	cli.NamespaceFlag(cmd, c, &opts.Namespace)
 	cmd.Flags().StringVar(&opts.Image, cli.StripDash(cli.ImageFlagName), "", "container `image` to deploy")
-	cmd.Flags().StringVar(&opts.ContainerRef, cli.StripDash(cli.ContainerRefFlagName), "", "`name` of container to deploy")
-	_ = cmd.MarkFlagCustom(cli.StripDash(cli.ContainerRefFlagName), "__"+c.Name+"_list_containers")
-	cmd.Flags().StringVar(&opts.FunctionRef, cli.StripDash(cli.FunctionRefFlagName), "", "`name` of function to deploy")
-	_ = cmd.MarkFlagCustom(cli.StripDash(cli.FunctionRefFlagName), "__"+c.Name+"_list_functions")
 	cmd.Flags().StringArrayVar(&opts.Inputs, cli.StripDash(cli.InputFlagName), []string{}, "`name` of stream to read messages from (or [<alias>:]<stream>[@<earliest|latest>], may be set multiple times)")
 	cmd.Flags().StringArrayVar(&opts.Outputs, cli.StripDash(cli.OutputFlagName), []string{}, "`name` of stream to write messages to (or [<alias>:]<stream>, may be set multiple times)")
 	cmd.Flags().BoolVar(&opts.Tail, cli.StripDash(cli.TailFlagName), false, "watch processor logs")

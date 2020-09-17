@@ -23,27 +23,29 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	buildv1alpha1 "github.com/projectriff/system/pkg/apis/build/v1alpha1"
+	streamingv1alpha1 "github.com/projectriff/system/pkg/apis/streaming/v1alpha1"
 )
 
 func TestDryRunResource(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	ctx := withStdout(context.Background(), stdout)
-	resource := &buildv1alpha1.Application{}
+	resource := &streamingv1alpha1.Stream{}
 
 	DryRunResource(ctx, resource, resource.GetGroupVersionKind())
 
 	expected := strings.TrimSpace(`
 ---
-apiVersion: build.projectriff.io/v1alpha1
-kind: Application
+apiVersion: streaming.projectriff.io/v1alpha1
+kind: Stream
 metadata:
   creationTimestamp: null
 spec:
-  build:
-    resources: {}
-  image: ""
-status: {}
+  contentType: ""
+  gateway: {}
+status:
+  binding:
+    metadataRef: {}
+    secretRef: {}
 `)
 	actual := strings.TrimSpace(stdout.String())
 	if diff := cmp.Diff(expected, actual); diff != "" {

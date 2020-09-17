@@ -24,7 +24,7 @@ import (
 
 	"github.com/projectriff/cli/pkg/k8s"
 	rifftesting "github.com/projectriff/cli/pkg/testing"
-	buildv1alpha1 "github.com/projectriff/system/pkg/apis/build/v1alpha1"
+	streamingv1alpha1 "github.com/projectriff/system/pkg/apis/streaming/v1alpha1"
 	"github.com/vmware-labs/reconciler-runtime/apis"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,18 +33,17 @@ import (
 )
 
 func TestWaitUntilReady(t *testing.T) {
-	// using Application, but any type will work
-	application := &buildv1alpha1.Application{
+	processor := &streamingv1alpha1.Processor{
 		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "build.projectriff.io/v1alpha1",
+			Kind:       "Processor",
+			APIVersion: "streaming.projectriff.io/v1alpha1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
-			Name:      "my-application",
+			Name:      "my-processor",
 			UID:       "c6acbbab-87dd-11e9-807c-42010a80011d",
 		},
-		Status: buildv1alpha1.ApplicationStatus{
+		Status: streamingv1alpha1.ProcessorStatus{
 			Status: apis.Status{
 				Conditions: apis.Conditions{
 					{
@@ -58,37 +57,37 @@ func TestWaitUntilReady(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		resource *buildv1alpha1.Application
+		resource *streamingv1alpha1.Processor
 		events   []watch.Event
 		err      error
 	}{{
 		name:     "transitions true",
-		resource: application.DeepCopy(),
+		resource: processor.DeepCopy(),
 		events: []watch.Event{
-			updateReady(application, corev1.ConditionTrue, ""),
+			updateReady(processor, corev1.ConditionTrue, ""),
 		},
 	}, {
 		name:     "transitions false",
-		resource: application.DeepCopy(),
+		resource: processor.DeepCopy(),
 		events: []watch.Event{
-			updateReady(application, corev1.ConditionFalse, "test not ready"),
+			updateReady(processor, corev1.ConditionFalse, "test not ready"),
 		},
 		err: fmt.Errorf("failed to become ready: %s", "test not ready"),
 	}, {
 		name:     "ignore other resources",
-		resource: application.DeepCopy(),
+		resource: processor.DeepCopy(),
 		events: []watch.Event{
-			updateReadyOther(application, corev1.ConditionFalse, "not my app"),
-			updateReady(application, corev1.ConditionTrue, ""),
+			updateReadyOther(processor, corev1.ConditionFalse, "not my app"),
+			updateReady(processor, corev1.ConditionTrue, ""),
 		},
 	}, {
 		name:     "bail on delete",
-		resource: application.DeepCopy(),
+		resource: processor.DeepCopy(),
 		events: []watch.Event{
-			updateReady(application, corev1.ConditionUnknown, ""),
-			watch.Event{Type: watch.Deleted, Object: application.DeepCopy()},
+			updateReady(processor, corev1.ConditionUnknown, ""),
+			watch.Event{Type: watch.Deleted, Object: processor.DeepCopy()},
 		},
-		err: fmt.Errorf("%s %q deleted", "application", "my-application"),
+		err: fmt.Errorf("%s %q deleted", "processor", "my-processor"),
 	}}
 
 	for _, test := range tests {
@@ -97,11 +96,11 @@ func TestWaitUntilReady(t *testing.T) {
 			defer lw.Shutdown()
 			ctx := k8s.WithListerWatcher(context.Background(), lw)
 
-			client := rifftesting.NewClient(application)
+			client := rifftesting.NewClient(processor)
 			done := make(chan error, 1)
 			defer close(done)
 			go func() {
-				done <- k8s.WaitUntilReady(ctx, client.Build().RESTClient(), "applications", application)
+				done <- k8s.WaitUntilReady(ctx, client.StreamingRuntime().RESTClient(), "processors", processor)
 			}()
 
 			time.Sleep(5 * time.Millisecond)
@@ -117,17 +116,17 @@ func TestWaitUntilReady(t *testing.T) {
 	}
 }
 
-func updateReady(application *buildv1alpha1.Application, status corev1.ConditionStatus, message string) watch.Event {
-	application = application.DeepCopy()
-	application.Status.Conditions[0].Status = status
-	application.Status.Conditions[0].Message = message
-	return watch.Event{Type: watch.Modified, Object: application}
+func updateReady(processor *streamingv1alpha1.Processor, status corev1.ConditionStatus, message string) watch.Event {
+	processor = processor.DeepCopy()
+	processor.Status.Conditions[0].Status = status
+	processor.Status.Conditions[0].Message = message
+	return watch.Event{Type: watch.Modified, Object: processor}
 }
 
-func updateReadyOther(application *buildv1alpha1.Application, status corev1.ConditionStatus, message string) watch.Event {
-	application = application.DeepCopy()
-	application.UID = "not-a-uid"
-	application.Status.Conditions[0].Status = status
-	application.Status.Conditions[0].Message = message
-	return watch.Event{Type: watch.Modified, Object: application}
+func updateReadyOther(processor *streamingv1alpha1.Processor, status corev1.ConditionStatus, message string) watch.Event {
+	processor = processor.DeepCopy()
+	processor.UID = "not-a-uid"
+	processor.Status.Conditions[0].Status = status
+	processor.Status.Conditions[0].Message = message
+	return watch.Event{Type: watch.Modified, Object: processor}
 }

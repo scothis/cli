@@ -24,7 +24,7 @@ import (
 
 	"github.com/projectriff/cli/pkg/cli"
 	"github.com/projectriff/cli/pkg/k8s"
-	"github.com/projectriff/cli/pkg/streaming/commands"
+	"github.com/projectriff/cli/pkg/riff/commands"
 	rifftesting "github.com/projectriff/cli/pkg/testing"
 	kailtesting "github.com/projectriff/cli/pkg/testing/kail"
 	streamingv1alpha1 "github.com/projectriff/system/pkg/apis/streaming/v1alpha1"
@@ -43,7 +43,7 @@ func TestProcessorCreateOptions(t *testing.T) {
 				ResourceOptions: rifftesting.InvalidResourceOptions,
 			},
 			ExpectFieldErrors: rifftesting.InvalidResourceOptionsFieldError.Also(
-				cli.ErrMissingOneOf(cli.ContainerRefFlagName, cli.FunctionRefFlagName, cli.ImageFlagName),
+				cli.ErrMissingField(cli.ImageFlagName),
 				cli.ErrMissingField(cli.InputFlagName),
 			),
 		},
@@ -51,7 +51,7 @@ func TestProcessorCreateOptions(t *testing.T) {
 			Name: "with inputs but no outputs",
 			Options: &commands.ProcessorCreateOptions{
 				ResourceOptions: rifftesting.ValidResourceOptions,
-				FunctionRef:     "my-function",
+				Image:           "example.com/repo:tag",
 				Inputs:          []string{"input1", "input2"},
 			},
 			ShouldValidate: true,
@@ -59,42 +59,16 @@ func TestProcessorCreateOptions(t *testing.T) {
 			Name: "with image",
 			Options: &commands.ProcessorCreateOptions{
 				ResourceOptions: rifftesting.ValidResourceOptions,
-				Image:           "my-image",
+				Image:           "example.com/repo:tag",
 				Inputs:          []string{"input"},
 			},
 			ShouldValidate: true,
-		}, {
-			Name: "with container ref",
-			Options: &commands.ProcessorCreateOptions{
-				ResourceOptions: rifftesting.ValidResourceOptions,
-				ContainerRef:    "my-container",
-				Inputs:          []string{"input"},
-			},
-			ShouldValidate: true,
-		}, {
-			Name: "with function ref",
-			Options: &commands.ProcessorCreateOptions{
-				ResourceOptions: rifftesting.ValidResourceOptions,
-				FunctionRef:     "my-function",
-				Inputs:          []string{"input"},
-			},
-			ShouldValidate: true,
-		}, {
-			Name: "invalid with image, container ref and function ref",
-			Options: &commands.ProcessorCreateOptions{
-				ResourceOptions: rifftesting.ValidResourceOptions,
-				Image:           "my-image",
-				ContainerRef:    "my-container",
-				FunctionRef:     "my-function",
-				Inputs:          []string{"input1", "input2"},
-			},
-			ExpectFieldErrors: cli.ErrMultipleOneOf(cli.ContainerRefFlagName, cli.FunctionRefFlagName, cli.ImageFlagName),
 		},
 		{
 			Name: "with inputs and outputs",
 			Options: &commands.ProcessorCreateOptions{
 				ResourceOptions: rifftesting.ValidResourceOptions,
-				FunctionRef:     "my-function",
+				Image:           "example.com/repo:tag",
 				Inputs:          []string{"input1", "input2"},
 				Outputs:         []string{"output1", "output2"},
 			},
@@ -104,7 +78,7 @@ func TestProcessorCreateOptions(t *testing.T) {
 			Name: "with explicit input bindings and output bindings",
 			Options: &commands.ProcessorCreateOptions{
 				ResourceOptions: rifftesting.ValidResourceOptions,
-				FunctionRef:     "my-function",
+				Image:           "example.com/repo:tag",
 				Inputs:          []string{"inParam1:input1", "inParam2:input2"},
 				Outputs:         []string{"outParam1:output1", "outParam1:output2"},
 			},
@@ -164,7 +138,7 @@ func TestProcessorCreateOptions(t *testing.T) {
 			Name: "with tail",
 			Options: &commands.ProcessorCreateOptions{
 				ResourceOptions: rifftesting.ValidResourceOptions,
-				FunctionRef:     "my-function",
+				Image:           "example.com/repo:tag",
 				Inputs:          []string{"input"},
 				Tail:            true,
 				WaitTimeout:     "10m",
@@ -175,7 +149,7 @@ func TestProcessorCreateOptions(t *testing.T) {
 			Name: "with tail, missing timeout",
 			Options: &commands.ProcessorCreateOptions{
 				ResourceOptions: rifftesting.ValidResourceOptions,
-				FunctionRef:     "my-function",
+				Image:           "example.com/repo:tag",
 				Inputs:          []string{"input"},
 				Tail:            true,
 			},
@@ -185,7 +159,7 @@ func TestProcessorCreateOptions(t *testing.T) {
 			Name: "with tail, invalid timeout",
 			Options: &commands.ProcessorCreateOptions{
 				ResourceOptions: rifftesting.ValidResourceOptions,
-				FunctionRef:     "my-function",
+				Image:           "example.com/repo:tag",
 				Inputs:          []string{"input"},
 				Tail:            true,
 				WaitTimeout:     "d",
@@ -196,7 +170,7 @@ func TestProcessorCreateOptions(t *testing.T) {
 			Name: "dry run",
 			Options: &commands.ProcessorCreateOptions{
 				ResourceOptions: rifftesting.ValidResourceOptions,
-				FunctionRef:     "my-function",
+				Image:           "example.com/repo:tag",
 				Inputs:          []string{"input"},
 				DryRun:          true,
 			},
@@ -206,7 +180,7 @@ func TestProcessorCreateOptions(t *testing.T) {
 			Name: "dry run, tail",
 			Options: &commands.ProcessorCreateOptions{
 				ResourceOptions: rifftesting.ValidResourceOptions,
-				FunctionRef:     "my-function",
+				Image:           "example.com/repo:tag",
 				Inputs:          []string{"input"},
 				Tail:            true,
 				WaitTimeout:     "10m",
@@ -222,8 +196,6 @@ func TestProcessorCreateOptions(t *testing.T) {
 func TestProcessorCreateCommand(t *testing.T) {
 	defaultNamespace := "default"
 	processorName := "my-processor"
-	containerRef := "my-container"
-	functionRef := "my-func"
 	image := "my-image"
 	inputName := "input"
 	inParameterName := "in"
@@ -247,58 +219,6 @@ func TestProcessorCreateCommand(t *testing.T) {
 			Name:        "invalid args",
 			Args:        []string{},
 			ShouldError: true,
-		},
-		{
-			Name: "create with container ref",
-			Args: []string{processorName, cli.ContainerRefFlagName, containerRef, cli.InputFlagName, inputName},
-			ExpectCreates: []runtime.Object{
-				&streamingv1alpha1.Processor{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: defaultNamespace,
-						Name:      processorName,
-					},
-					Spec: streamingv1alpha1.ProcessorSpec{
-						Build:  &streamingv1alpha1.Build{ContainerRef: containerRef},
-						Inputs: []streamingv1alpha1.InputStreamBinding{{Stream: inputName}},
-						Template: &corev1.PodTemplateSpec{
-							Spec: corev1.PodSpec{
-								Containers: []corev1.Container{
-									{},
-								},
-							},
-						},
-					},
-				},
-			},
-			ExpectOutput: `
-Created processor "my-processor"
-`,
-		},
-		{
-			Name: "create with function ref",
-			Args: []string{processorName, cli.FunctionRefFlagName, functionRef, cli.InputFlagName, inputName},
-			ExpectCreates: []runtime.Object{
-				&streamingv1alpha1.Processor{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: defaultNamespace,
-						Name:      processorName,
-					},
-					Spec: streamingv1alpha1.ProcessorSpec{
-						Build:  &streamingv1alpha1.Build{FunctionRef: functionRef},
-						Inputs: []streamingv1alpha1.InputStreamBinding{{Stream: inputName}},
-						Template: &corev1.PodTemplateSpec{
-							Spec: corev1.PodSpec{
-								Containers: []corev1.Container{
-									{},
-								},
-							},
-						},
-					},
-				},
-			},
-			ExpectOutput: `
-Created processor "my-processor"
-`,
 		},
 		{
 			Name: "create with image",
@@ -327,7 +247,7 @@ Created processor "my-processor"
 		},
 		{
 			Name: "dry run",
-			Args: []string{processorName, cli.FunctionRefFlagName, functionRef, cli.InputFlagName, inputName, cli.DryRunFlagName},
+			Args: []string{processorName, cli.ImageFlagName, image, cli.InputFlagName, inputName, cli.DryRunFlagName},
 			ExpectOutput: `
 ---
 apiVersion: streaming.projectriff.io/v1alpha1
@@ -337,8 +257,6 @@ metadata:
   name: my-processor
   namespace: default
 spec:
-  build:
-    functionRef: my-func
   inputs:
   - startOffset: ""
     stream: input
@@ -348,7 +266,8 @@ spec:
       creationTimestamp: null
     spec:
       containers:
-      - name: ""
+      - image: my-image
+        name: ""
         resources: {}
 status: {}
 
@@ -357,7 +276,7 @@ Created processor "my-processor"
 		},
 		{
 			Name: "create with multiple inputs",
-			Args: []string{processorName, cli.FunctionRefFlagName, functionRef, cli.InputFlagName, inputName, cli.InputFlagName, inputNameOther},
+			Args: []string{processorName, cli.ImageFlagName, image, cli.InputFlagName, inputName, cli.InputFlagName, inputNameOther},
 			ExpectCreates: []runtime.Object{
 				&streamingv1alpha1.Processor{
 					ObjectMeta: metav1.ObjectMeta{
@@ -365,7 +284,6 @@ Created processor "my-processor"
 						Name:      processorName,
 					},
 					Spec: streamingv1alpha1.ProcessorSpec{
-						Build: &streamingv1alpha1.Build{FunctionRef: functionRef},
 						Inputs: []streamingv1alpha1.InputStreamBinding{
 							{Stream: inputName},
 							{Stream: inputNameOther},
@@ -373,7 +291,7 @@ Created processor "my-processor"
 						Template: &corev1.PodTemplateSpec{
 							Spec: corev1.PodSpec{
 								Containers: []corev1.Container{
-									{},
+									{Image: image},
 								},
 							},
 						},
@@ -386,7 +304,7 @@ Created processor "my-processor"
 		},
 		{
 			Name: "create with single output",
-			Args: []string{processorName, cli.FunctionRefFlagName, functionRef, cli.InputFlagName, inputName, cli.InputFlagName, inputNameOther, cli.OutputFlagName, outputName},
+			Args: []string{processorName, cli.ImageFlagName, image, cli.InputFlagName, inputName, cli.InputFlagName, inputNameOther, cli.OutputFlagName, outputName},
 			ExpectCreates: []runtime.Object{
 				&streamingv1alpha1.Processor{
 					ObjectMeta: metav1.ObjectMeta{
@@ -394,7 +312,6 @@ Created processor "my-processor"
 						Name:      processorName,
 					},
 					Spec: streamingv1alpha1.ProcessorSpec{
-						Build: &streamingv1alpha1.Build{FunctionRef: functionRef},
 						Inputs: []streamingv1alpha1.InputStreamBinding{
 							{Stream: inputName},
 							{Stream: inputNameOther},
@@ -403,7 +320,7 @@ Created processor "my-processor"
 						Template: &corev1.PodTemplateSpec{
 							Spec: corev1.PodSpec{
 								Containers: []corev1.Container{
-									{},
+									{Image: image},
 								},
 							},
 						},
@@ -416,7 +333,7 @@ Created processor "my-processor"
 		},
 		{
 			Name: "create with some explicit parameter bindings",
-			Args: []string{processorName, cli.FunctionRefFlagName, functionRef, cli.InputFlagName, inputNameBinding, cli.InputFlagName, inputNameOther, cli.OutputFlagName, outputNameOther, cli.OutputFlagName, outputNameBinding},
+			Args: []string{processorName, cli.ImageFlagName, image, cli.InputFlagName, inputNameBinding, cli.InputFlagName, inputNameOther, cli.OutputFlagName, outputNameOther, cli.OutputFlagName, outputNameBinding},
 			ExpectCreates: []runtime.Object{
 				&streamingv1alpha1.Processor{
 					ObjectMeta: metav1.ObjectMeta{
@@ -424,7 +341,6 @@ Created processor "my-processor"
 						Name:      processorName,
 					},
 					Spec: streamingv1alpha1.ProcessorSpec{
-						Build: &streamingv1alpha1.Build{FunctionRef: functionRef},
 						Inputs: []streamingv1alpha1.InputStreamBinding{
 							{Stream: inputName, Alias: inParameterName},
 							{Stream: inputNameOther},
@@ -436,7 +352,7 @@ Created processor "my-processor"
 						Template: &corev1.PodTemplateSpec{
 							Spec: corev1.PodSpec{
 								Containers: []corev1.Container{
-									{},
+									{Image: image},
 								},
 							},
 						},
@@ -449,7 +365,7 @@ Created processor "my-processor"
 		},
 		{
 			Name: "create with multiple outputs",
-			Args: []string{processorName, cli.FunctionRefFlagName, functionRef, cli.InputFlagName, inputName, cli.InputFlagName, inputNameOther, cli.OutputFlagName, outputName, cli.OutputFlagName, outputNameOther},
+			Args: []string{processorName, cli.ImageFlagName, image, cli.InputFlagName, inputName, cli.InputFlagName, inputNameOther, cli.OutputFlagName, outputName, cli.OutputFlagName, outputNameOther},
 			ExpectCreates: []runtime.Object{
 				&streamingv1alpha1.Processor{
 					ObjectMeta: metav1.ObjectMeta{
@@ -457,7 +373,6 @@ Created processor "my-processor"
 						Name:      processorName,
 					},
 					Spec: streamingv1alpha1.ProcessorSpec{
-						Build: &streamingv1alpha1.Build{FunctionRef: functionRef},
 						Inputs: []streamingv1alpha1.InputStreamBinding{
 							{Stream: inputName},
 							{Stream: inputNameOther},
@@ -469,7 +384,7 @@ Created processor "my-processor"
 						Template: &corev1.PodTemplateSpec{
 							Spec: corev1.PodSpec{
 								Containers: []corev1.Container{
-									{},
+									{Image: image},
 								},
 							},
 						},
@@ -482,7 +397,7 @@ Created processor "my-processor"
 		},
 		{
 			Name: "error existing processor",
-			Args: []string{processorName, cli.FunctionRefFlagName, functionRef, cli.InputFlagName, inputName},
+			Args: []string{processorName, cli.ImageFlagName, image, cli.InputFlagName, inputName},
 			GivenObjects: []runtime.Object{
 				&streamingv1alpha1.Processor{
 					ObjectMeta: metav1.ObjectMeta{
@@ -498,12 +413,11 @@ Created processor "my-processor"
 						Name:      processorName,
 					},
 					Spec: streamingv1alpha1.ProcessorSpec{
-						Build:  &streamingv1alpha1.Build{FunctionRef: functionRef},
 						Inputs: []streamingv1alpha1.InputStreamBinding{{Stream: inputName}},
 						Template: &corev1.PodTemplateSpec{
 							Spec: corev1.PodSpec{
 								Containers: []corev1.Container{
-									{},
+									{Image: image},
 								},
 							},
 						},
@@ -514,7 +428,7 @@ Created processor "my-processor"
 		},
 		{
 			Name: "error during create",
-			Args: []string{processorName, cli.FunctionRefFlagName, functionRef, cli.InputFlagName, inputName},
+			Args: []string{processorName, cli.ImageFlagName, image, cli.InputFlagName, inputName},
 			WithReactors: []rifftesting.ReactionFunc{
 				rifftesting.InduceFailure("create", "processors"),
 			},
@@ -525,12 +439,11 @@ Created processor "my-processor"
 						Name:      processorName,
 					},
 					Spec: streamingv1alpha1.ProcessorSpec{
-						Build:  &streamingv1alpha1.Build{FunctionRef: functionRef},
 						Inputs: []streamingv1alpha1.InputStreamBinding{{Stream: inputName}},
 						Template: &corev1.PodTemplateSpec{
 							Spec: corev1.PodSpec{
 								Containers: []corev1.Container{
-									{},
+									{Image: image},
 								},
 							},
 						},
@@ -541,7 +454,7 @@ Created processor "my-processor"
 		},
 		{
 			Name: "tail logs",
-			Args: []string{processorName, cli.FunctionRefFlagName, functionRef, cli.InputFlagName, inputName, cli.TailFlagName},
+			Args: []string{processorName, cli.ImageFlagName, image, cli.InputFlagName, inputName, cli.TailFlagName},
 			Prepare: func(t *testing.T, ctx context.Context, c *cli.Config) (context.Context, error) {
 				lw := cachetesting.NewFakeControllerSource()
 				ctx = k8s.WithListerWatcher(ctx, lw)
@@ -554,13 +467,12 @@ Created processor "my-processor"
 						Name:      processorName,
 					},
 					Spec: streamingv1alpha1.ProcessorSpec{
-						Build:   &streamingv1alpha1.Build{FunctionRef: functionRef},
 						Inputs:  []streamingv1alpha1.InputStreamBinding{{Stream: inputName}},
 						Outputs: []streamingv1alpha1.OutputStreamBinding{},
 						Template: &corev1.PodTemplateSpec{
 							Spec: corev1.PodSpec{
 								Containers: []corev1.Container{
-									{},
+									{Image: image},
 								},
 							},
 						},
@@ -586,13 +498,12 @@ Created processor "my-processor"
 						Name:      processorName,
 					},
 					Spec: streamingv1alpha1.ProcessorSpec{
-						Build:   &streamingv1alpha1.Build{FunctionRef: functionRef},
 						Inputs:  []streamingv1alpha1.InputStreamBinding{{Stream: inputName}},
 						Outputs: []streamingv1alpha1.OutputStreamBinding{},
 						Template: &corev1.PodTemplateSpec{
 							Spec: corev1.PodSpec{
 								Containers: []corev1.Container{
-									{},
+									{Image: image},
 								},
 							},
 						},
@@ -608,7 +519,7 @@ Processor "my-processor" is ready
 		},
 		{
 			Name: "tail timeout",
-			Args: []string{processorName, cli.FunctionRefFlagName, functionRef, cli.InputFlagName, inputName, cli.TailFlagName, cli.WaitTimeoutFlagName, "5ms"},
+			Args: []string{processorName, cli.ImageFlagName, image, cli.InputFlagName, inputName, cli.TailFlagName, cli.WaitTimeoutFlagName, "5ms"},
 			Prepare: func(t *testing.T, ctx context.Context, c *cli.Config) (context.Context, error) {
 				lw := cachetesting.NewFakeControllerSource()
 				ctx = k8s.WithListerWatcher(ctx, lw)
@@ -621,13 +532,12 @@ Processor "my-processor" is ready
 						Name:      processorName,
 					},
 					Spec: streamingv1alpha1.ProcessorSpec{
-						Build:   &streamingv1alpha1.Build{FunctionRef: functionRef},
 						Inputs:  []streamingv1alpha1.InputStreamBinding{{Stream: inputName}},
 						Outputs: []streamingv1alpha1.OutputStreamBinding{},
 						Template: &corev1.PodTemplateSpec{
 							Spec: corev1.PodSpec{
 								Containers: []corev1.Container{
-									{},
+									{Image: image},
 								},
 							},
 						},
@@ -656,13 +566,12 @@ Processor "my-processor" is ready
 						Name:      processorName,
 					},
 					Spec: streamingv1alpha1.ProcessorSpec{
-						Build:   &streamingv1alpha1.Build{FunctionRef: functionRef},
 						Inputs:  []streamingv1alpha1.InputStreamBinding{{Stream: inputName}},
 						Outputs: []streamingv1alpha1.OutputStreamBinding{},
 						Template: &corev1.PodTemplateSpec{
 							Spec: corev1.PodSpec{
 								Containers: []corev1.Container{
-									{},
+									{Image: image},
 								},
 							},
 						},
@@ -686,7 +595,7 @@ To continue watching logs run: riff processor tail my-processor --namespace defa
 		},
 		{
 			Name: "tail error",
-			Args: []string{processorName, cli.FunctionRefFlagName, functionRef, cli.InputFlagName, inputName, cli.TailFlagName},
+			Args: []string{processorName, cli.ImageFlagName, image, cli.InputFlagName, inputName, cli.TailFlagName},
 			Prepare: func(t *testing.T, ctx context.Context, c *cli.Config) (context.Context, error) {
 				lw := cachetesting.NewFakeControllerSource()
 				ctx = k8s.WithListerWatcher(ctx, lw)
@@ -699,13 +608,12 @@ To continue watching logs run: riff processor tail my-processor --namespace defa
 						Name:      processorName,
 					},
 					Spec: streamingv1alpha1.ProcessorSpec{
-						Build:   &streamingv1alpha1.Build{FunctionRef: functionRef},
 						Inputs:  []streamingv1alpha1.InputStreamBinding{{Stream: inputName}},
 						Outputs: []streamingv1alpha1.OutputStreamBinding{},
 						Template: &corev1.PodTemplateSpec{
 							Spec: corev1.PodSpec{
 								Containers: []corev1.Container{
-									{},
+									{Image: image},
 								},
 							},
 						},
@@ -729,13 +637,12 @@ To continue watching logs run: riff processor tail my-processor --namespace defa
 						Name:      processorName,
 					},
 					Spec: streamingv1alpha1.ProcessorSpec{
-						Build:   &streamingv1alpha1.Build{FunctionRef: functionRef},
 						Inputs:  []streamingv1alpha1.InputStreamBinding{{Stream: inputName}},
 						Outputs: []streamingv1alpha1.OutputStreamBinding{},
 						Template: &corev1.PodTemplateSpec{
 							Spec: corev1.PodSpec{
 								Containers: []corev1.Container{
-									{},
+									{Image: image},
 								},
 							},
 						},
@@ -750,7 +657,7 @@ Waiting for processor "my-processor" to become ready...
 		},
 		{
 			Name: "create from function ref with env and env-from",
-			Args: []string{processorName, cli.FunctionRefFlagName, functionRef, cli.InputFlagName, inputName, cli.EnvFlagName, envVar, cli.EnvFlagName, envVarOther, cli.EnvFromFlagName, envVarFromConfigMap, cli.EnvFromFlagName, envVarFromSecret},
+			Args: []string{processorName, cli.ImageFlagName, image, cli.InputFlagName, inputName, cli.EnvFlagName, envVar, cli.EnvFlagName, envVarOther, cli.EnvFromFlagName, envVarFromConfigMap, cli.EnvFromFlagName, envVarFromSecret},
 			ExpectCreates: []runtime.Object{
 				&streamingv1alpha1.Processor{
 					ObjectMeta: metav1.ObjectMeta{
@@ -758,12 +665,12 @@ Waiting for processor "my-processor" to become ready...
 						Name:      processorName,
 					},
 					Spec: streamingv1alpha1.ProcessorSpec{
-						Build:  &streamingv1alpha1.Build{FunctionRef: functionRef},
 						Inputs: []streamingv1alpha1.InputStreamBinding{{Stream: inputName}},
 						Template: &corev1.PodTemplateSpec{
 							Spec: corev1.PodSpec{
 								Containers: []corev1.Container{
 									{
+										Image: image,
 										Env: []corev1.EnvVar{
 											{Name: envName, Value: envValue},
 											{Name: envNameOther, Value: envValueOther},

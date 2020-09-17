@@ -10,6 +10,9 @@ LDFLAGS_VERSION = -X github.com/projectriff/cli/pkg/cli.cli_name=$(NAME) \
 				  -X github.com/projectriff/cli/pkg/cli.cli_gitsha=$(GITSHA) \
 				  -X github.com/projectriff/cli/pkg/cli.cli_gitdirty=$(GITDIRTY)
 
+MOCKERY ?= go run -modfile hack/go.mod github.com/vektra/mockery/cmd/mockery
+GOIMPORTS ?= go run -modfile hack/go.mod golang.org/x/tools/cmd/goimports
+
 .PHONY: all
 all: build test verify-goimports docs ## Build, test, verify source formatting and regenerate docs
 
@@ -33,17 +36,13 @@ install: build ## Copy build to GOPATH/bin
 coverage: ## Run the tests with coverage and race detection
 	go test -v --race -coverprofile=coverage.txt -covermode=atomic ./...
 
-.PHONY: check-goimports
-check-goimports: ## Checks if goimports is installed
-	@which goimports > /dev/null || (echo goimports not found: issue \"GO111MODULE=off go get -u golang.org/x/tools/cmd/goimports\" && false)
-
 .PHONY: goimports
-goimports: check-goimports ## Runs goimports on the project
-	@goimports -w pkg cmd
+goimports: ## Runs goimports on the project
+	@$(GOIMPORTS) -w pkg cmd
 
 .PHONY: verify-goimports
-verify-goimports: check-goimports ## Verifies if all source files are formatted correctly
-	@goimports -l pkg cmd | (! grep .) || (echo above files are not formatted correctly. please run \"make goimports\" && false)
+verify-goimports: ## Verifies if all source files are formatted correctly
+	@$(GOIMPORTS) -l pkg cmd | (! grep .) || (echo above files are not formatted correctly. please run \"make goimports\" && false)
 
 $(OUTPUT): $(GO_SOURCES) VERSION
 	go build -o $(OUTPUT) -ldflags "$(LDFLAGS_VERSION)" ./cmd/riff
@@ -66,21 +65,16 @@ verify-docs: docs ## Verify the generated docs are up to date
 clean-docs: ## Delete the generated docs
 	rm -fR docs
 
-.PHONY: check-mockery
-check-mockery:
-    # Use go get in GOPATH mode to install/update mockery. This avoids polluting go.mod/go.sum.
-	@which mockery || (echo mockery not found: issue \"GO111MODULE=off go get -u  github.com/vektra/mockery/.../\" && false)
-
 .PHONY: gen-mocks
-gen-mocks: check-mockery clean-mocks ## Generate mocks
-	mockery -output ./pkg/testing/pack -outpkg pack -dir ./pkg/pack -name Client
-	mockery -output ./pkg/testing/kail -outpkg kail -dir ./pkg/kail -name Logger
-	make goimports
+gen-mocks: clean-mocks ## Generate mocks
+	@$(MOCKERY) -output ./pkg/testing/pack -outpkg pack -dir ./pkg/pack -name Client
+	@$(MOCKERY) -output ./pkg/testing/kail -outpkg kail -dir ./pkg/kail -name Logger
+	@make goimports
 
 .PHONY: clean-mocks
 clean-mocks: ## Delete mocks
-	rm -fR pkg/testing/pack
-	rm -fR pkg/testing/kail
+	@rm -fR pkg/testing/pack
+	@rm -fR pkg/testing/kail
 
 # Absolutely awesome: http://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
 help: ## Print help for each make target

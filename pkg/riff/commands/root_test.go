@@ -41,9 +41,9 @@ func TestRootCommand(t *testing.T) {
 		},
 		{
 			Name: "help subcommand with args",
-			Args: []string{"function", "create", "--help"},
+			Args: []string{"stream", "create", "--help"},
 			Verify: func(t *testing.T, output string, err error) {
-				if !strings.Contains(output, "riff function create <name> [flags]") {
+				if !strings.Contains(output, "riff stream create <name> [flags]") {
 					t.Errorf("expected help to contain command with args")
 				}
 			},
