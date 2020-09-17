@@ -20,8 +20,6 @@ import (
 	"context"
 	"strings"
 
-	bindingcommands "github.com/projectriff/cli/pkg/binding/commands"
-	buildcommands "github.com/projectriff/cli/pkg/build/commands"
 	"github.com/projectriff/cli/pkg/cli"
 	"github.com/spf13/cobra"
 )
@@ -46,12 +44,12 @@ alternate execution models and capabilities.
 `),
 	}
 
-	cmd.AddCommand(buildcommands.NewCredentialCommand(ctx, c))
-	cmd.AddCommand(buildcommands.NewApplicationCommand(ctx, c))
-	cmd.AddCommand(buildcommands.NewContainerCommand(ctx, c))
-	cmd.AddCommand(buildcommands.NewFunctionCommand(ctx, c))
-
-	cmd.AddCommand(bindingcommands.NewBindingCommand(ctx, c))
+	cmd.AddCommand(NewStreamCommand(ctx, c)))
+	cmd.AddCommand(NewProcessorCommand(ctx, c)))
+	cmd.AddCommand(NewGatewayCommand(ctx, c)))
+	cmd.AddCommand(NewInMemoryGatewayCommand(ctx, c)))
+	cmd.AddCommand(NewKafkaGatewayCommand(ctx, c)))
+	cmd.AddCommand(NewPulsarGatewayCommand(ctx, c)))
 
 	return cmd
 }

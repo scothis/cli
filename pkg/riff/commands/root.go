@@ -23,9 +23,6 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/projectriff/cli/pkg/cli"
-	corecommands "github.com/projectriff/cli/pkg/core/commands"
-	knativecommands "github.com/projectriff/cli/pkg/knative/commands"
-	streamingcommands "github.com/projectriff/cli/pkg/streaming/commands"
 	"github.com/spf13/cobra"
 )
 
@@ -52,41 +49,6 @@ func NewRootCommand(ctx context.Context, c *cli.Config) *cobra.Command {
 	cmd.PersistentFlags().StringVar(&c.KubeConfigFile, cli.StripDash(cli.KubeConfigFlagNameDeprecated), "", "kubectl config `file` (default is $HOME/.kube/config)")
 	cmd.PersistentFlags().MarkDeprecated(cli.StripDash(cli.KubeConfigFlagNameDeprecated), fmt.Sprintf("renamed to %s", cli.KubeConfigFlagName))
 	cmd.PersistentFlags().BoolVar(&color.NoColor, cli.StripDash(cli.NoColorFlagName), color.NoColor, "disable color output in terminals")
-
-	// add runtimes
-	runtimes := []struct {
-		name    string
-		command *cobra.Command
-		doc     string
-	}{{
-		name:    cli.CoreRuntime,
-		command: corecommands.NewCoreCommand(ctx, c),
-		doc: strings.TrimSpace(`
-The core runtime uses core Kubernetes resources like Deployment and Service to
-expose the workload over HTTP.
-`),
-	}, {
-		name:    cli.StreamingRuntime,
-		command: streamingcommands.NewStreamingCommand(ctx, c),
-		doc: strings.TrimSpace(`
-The streaming runtime maps one or more input and output streams to a function.
-`),
-	}, {
-		name:    cli.KnativeRuntime,
-		command: knativecommands.NewKnativeCommand(ctx, c),
-		doc: strings.TrimSpace(`
-The Knative runtime uses Knative Serving to expose the workload over HTTP with
-zero-to-n autoscaling and managed ingress.
-`),
-	}}
-	for _, runtime := range runtimes {
-		if c.Runtimes[runtime.name] {
-			cmd.Long = cmd.Long + "\n\n" + runtime.doc
-		} else {
-			runtime.command.Hidden = true
-		}
-		cmd.AddCommand(runtime.command)
-	}
 
 	// add root-only commands
 	cmd.AddCommand(NewCompletionCommand(ctx, c))

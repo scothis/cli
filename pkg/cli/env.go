@@ -16,14 +16,11 @@
 
 package cli
 
-import "strings"
-
 var (
 	cli_name     = "riff"
 	cli_version  = "unknown"
 	cli_gitsha   = "unknown sha"
 	cli_gitdirty = ""
-	cli_runtimes = "core"
 )
 
 type CompiledEnv struct {
@@ -31,7 +28,6 @@ type CompiledEnv struct {
 	Version  string
 	GitSha   string
 	GitDirty bool
-	Runtimes map[string]bool
 }
 
 var env CompiledEnv
@@ -43,10 +39,5 @@ func init() {
 		Version:  cli_version,
 		GitSha:   cli_gitsha,
 		GitDirty: cli_gitdirty != "",
-		Runtimes: map[string]bool{},
 	}
-	for _, runtime := range strings.Split(cli_runtimes, ",") {
-		env.Runtimes[runtime] = true
-	}
-
 }

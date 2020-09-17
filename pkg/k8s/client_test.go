@@ -43,19 +43,7 @@ func TestNewClient(t *testing.T) {
 	if client.APIExtension() == nil {
 		t.Errorf("Expected APIExtension client to not be nil")
 	}
-	if client.Build() == nil {
-		t.Errorf("Expected Build client to not be nil")
-	}
-	if client.Bindings() == nil {
-		t.Errorf("Expected Bindings client to not be nil")
-	}
-	if client.CoreRuntime() == nil {
-		t.Errorf("Expected CoreRuntime client to not be nil")
-	}
 	if client.StreamingRuntime() == nil {
 		t.Errorf("Expected StreamingRuntime client to not be nil")
-	}
-	if client.KnativeRuntime() == nil {
-		t.Errorf("Expected KnativeRuntime client to not be nil")
 	}
 }

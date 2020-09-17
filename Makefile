@@ -8,8 +8,7 @@ GITDIRTY = $(shell git diff --quiet HEAD || echo "dirty")
 LDFLAGS_VERSION = -X github.com/projectriff/cli/pkg/cli.cli_name=$(NAME) \
 				  -X github.com/projectriff/cli/pkg/cli.cli_version=$(VERSION) \
 				  -X github.com/projectriff/cli/pkg/cli.cli_gitsha=$(GITSHA) \
-				  -X github.com/projectriff/cli/pkg/cli.cli_gitdirty=$(GITDIRTY) \
-				  -X github.com/projectriff/cli/pkg/cli.cli_runtimes=core,knative,streaming
+				  -X github.com/projectriff/cli/pkg/cli.cli_gitdirty=$(GITDIRTY)
 
 .PHONY: all
 all: build test verify-goimports docs ## Build, test, verify source formatting and regenerate docs

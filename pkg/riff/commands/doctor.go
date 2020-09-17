@@ -63,34 +63,13 @@ func (opts *DoctorOptions) Exec(ctx context.Context, c *cli.Config) error {
 	verbs := []string{"get", "list", "create", "update", "delete", "patch", "watch"}
 	readVerbs := []string{"get", "list", "watch"}
 	accessChecks := doctorAccessChecks{
-		{Attributes: &authv1.ResourceAttributes{Namespace: riffSystemNamespace, Group: "core", Resource: "configmaps", Name: "builders"}, Verbs: readVerbs},
-		{Attributes: &authv1.ResourceAttributes{Namespace: opts.Namespace, Group: "core", Resource: "configmaps"}, Verbs: verbs},
-		{Attributes: &authv1.ResourceAttributes{Namespace: opts.Namespace, Group: "core", Resource: "secrets"}, Verbs: verbs},
 		{Attributes: &authv1.ResourceAttributes{Namespace: opts.Namespace, Group: "core", Resource: "pods"}, Verbs: readVerbs},
 		{Attributes: &authv1.ResourceAttributes{Namespace: opts.Namespace, Group: "core", Resource: "pods", Subresource: "log"}, Verbs: readVerbs},
-		{Attributes: &authv1.ResourceAttributes{Namespace: opts.Namespace, Group: "build.projectriff.io", Resource: "applications"}, Verbs: verbs},
-		{Attributes: &authv1.ResourceAttributes{Namespace: opts.Namespace, Group: "build.projectriff.io", Resource: "containers"}, Verbs: verbs},
-		{Attributes: &authv1.ResourceAttributes{Namespace: opts.Namespace, Group: "build.projectriff.io", Resource: "functions"}, Verbs: verbs},
-	}
-	if c.Runtimes[cli.CoreRuntime] {
-		accessChecks = append(accessChecks,
-			&doctorAccessCheck{Attributes: &authv1.ResourceAttributes{Namespace: opts.Namespace, Group: "core.projectriff.io", Resource: "deployers"}, Verbs: verbs},
-		)
-	}
-	if c.Runtimes[cli.StreamingRuntime] {
-		accessChecks = append(accessChecks,
-			&doctorAccessCheck{Attributes: &authv1.ResourceAttributes{Namespace: opts.Namespace, Group: "streaming.projectriff.io", Resource: "processors"}, Verbs: verbs},
-			&doctorAccessCheck{Attributes: &authv1.ResourceAttributes{Namespace: opts.Namespace, Group: "streaming.projectriff.io", Resource: "streams"}, Verbs: verbs},
-			&doctorAccessCheck{Attributes: &authv1.ResourceAttributes{Namespace: opts.Namespace, Group: "streaming.projectriff.io", Resource: "inmemorygateways"}, Verbs: verbs},
-			&doctorAccessCheck{Attributes: &authv1.ResourceAttributes{Namespace: opts.Namespace, Group: "streaming.projectriff.io", Resource: "kafkagateways"}, Verbs: verbs},
-			&doctorAccessCheck{Attributes: &authv1.ResourceAttributes{Namespace: opts.Namespace, Group: "streaming.projectriff.io", Resource: "pulsargateways"}, Verbs: verbs},
-		)
-	}
-	if c.Runtimes[cli.KnativeRuntime] {
-		accessChecks = append(accessChecks,
-			&doctorAccessCheck{Attributes: &authv1.ResourceAttributes{Namespace: opts.Namespace, Group: "knative.projectriff.io", Resource: "adapters"}, Verbs: verbs},
-			&doctorAccessCheck{Attributes: &authv1.ResourceAttributes{Namespace: opts.Namespace, Group: "knative.projectriff.io", Resource: "deployers"}, Verbs: verbs},
-		)
+		{Attributes: &authv1.ResourceAttributes{Namespace: opts.Namespace, Group: "streaming.projectriff.io", Resource: "processors"}, Verbs: verbs},
+		{Attributes: &authv1.ResourceAttributes{Namespace: opts.Namespace, Group: "streaming.projectriff.io", Resource: "streams"}, Verbs: verbs},
+		{Attributes: &authv1.ResourceAttributes{Namespace: opts.Namespace, Group: "streaming.projectriff.io", Resource: "inmemorygateways"}, Verbs: verbs},
+		{Attributes: &authv1.ResourceAttributes{Namespace: opts.Namespace, Group: "streaming.projectriff.io", Resource: "kafkagateways"}, Verbs: verbs},
+		{Attributes: &authv1.ResourceAttributes{Namespace: opts.Namespace, Group: "streaming.projectriff.io", Resource: "pulsargateways"}, Verbs: verbs},
 	}
 
 	err = opts.checkAccess(c, accessChecks)
